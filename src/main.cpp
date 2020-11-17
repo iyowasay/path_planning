@@ -6,6 +6,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
+#include "spline.h"
 #include "json.hpp"
 
 // for convenience
@@ -49,8 +50,12 @@ int main() {
     map_waypoints_dx.push_back(d_x);
     map_waypoints_dy.push_back(d_y);
   }
+  
+  int lane = 1; // start in the middle lane(lane 1)
+  double cur_speed = 0.0; // MPH
+  int num_lanes = 3;
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
+  h.onMessage([&num_lanes, &cur_speed, &lane, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
@@ -68,13 +73,12 @@ int main() {
         
         if (event == "telemetry") {
           // j[1] is the data JSON object
-          
-          // Main car's localization Data
+          // // Ego car's localization Data
           double car_x = j[1]["x"];
           double car_y = j[1]["y"];
           double car_s = j[1]["s"];
           double car_d = j[1]["d"];
-          double car_yaw = j[1]["yaw"];
+          double car_yaw = j[1]["yaw"]; // in degree
           double car_speed = j[1]["speed"];
 
           // Previous path data given to the Planner
@@ -85,20 +89,160 @@ int main() {
           double end_path_d = j[1]["end_path_d"];
 
           // Sensor Fusion Data, a list of all other cars on the same side 
-          //   of the road.
+          // of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
 
           json msgJson;
-
-          vector<double> next_x_vals;
-          vector<double> next_y_vals;
-
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every .02 seconds
+           *   sequentially every 0.02 seconds
            */
 
+          // Note that the previous_path_x contains points that are generated and sent in last iteration 
+          // but not executed or used by the simulator(left-out points)
+          int unused_n = previous_path_x.size();
+          double MAX_SPEED = 49.5; // MPH, a bit lower than speed limit.
+          double lane_width = 4;
 
+          std::cout << lane << std::endl;
+          // sensor fusion
+          if(unused_n > 0)
+            car_s = end_path_s;
+
+          bool collision_warn = false;
+          double safe_gap = 25.0;
+          double cur_gap = 0.0;
+          double target_d = get_d_value(lane);
+          
+          // avoid collision
+          for(int i=0;i<sensor_fusion.size();++i)
+          {
+            double sense_d = sensor_fusion[i][6];
+            if(sense_d < target_d+2 && sense_d > target_d-2)
+            {
+              double sense_s = sensor_fusion[i][5]; 
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double v = sqrt(vx*vx+vy*vy);
+              double predict_sense_s; // the s value of surrounding vehicle after a short period(prediction of future position)
+              predict_sense_s = sense_s + (double)unused_n*0.02*v; // fuzzy logic
+              cur_gap = predict_sense_s - car_s;
+              if((car_s < predict_sense_s) && cur_gap <= safe_gap)
+              {
+                collision_warn = true;
+              }
+            }
+          }
+
+          if(collision_warn)
+          {
+            lane = decide_better_lane(lane, car_s, num_lanes, cur_gap, sensor_fusion);
+            cur_speed -= 0.2*(1+0.28*(safe_gap-cur_gap)/safe_gap); 
+          }
+          else if(cur_speed < MAX_SPEED)
+            cur_speed += 0.224;
+
+          if(cur_speed < 0)
+            cur_speed = 0.0;
+
+          
+          // x and y points for curve fitting(spline)
+          vector<double> X; 
+          vector<double> Y;
+
+          //reference of x,y,angle for transformation of coordinate
+          double ref_x = car_x;
+          double ref_y = car_y;
+          double ref_yaw = deg2rad(car_yaw); 
+
+          if(unused_n < 2)
+          {
+            // use starting position
+            double prev_car_x = car_x - cos(car_yaw);
+            double prev_car_y = car_y - sin(car_yaw);
+
+            X.push_back(prev_car_x);
+            Y.push_back(prev_car_y);
+            X.push_back(car_x);
+            Y.push_back(car_y);
+          }
+          else
+          {
+            ref_x = previous_path_x[unused_n-1];
+            ref_y = previous_path_y[unused_n-1];
+
+            double ref_x_prev = previous_path_x[unused_n-2];
+            double ref_y_prev = previous_path_y[unused_n-2];
+            ref_yaw = atan2((ref_y-ref_y_prev), (ref_x-ref_x_prev));
+
+            X.push_back(ref_x_prev);
+            Y.push_back(ref_y_prev);
+            X.push_back(ref_x);
+            Y.push_back(ref_y);
+          }
+
+          // add 3 more sparse(spaced) points useing Fernet system
+          // since d unit vector is calculated from the middle(double-yellow driving line)
+          // d coordinate in the middle of targeting lane = lane_number*4 + 4/2
+          double target_x_ = 30.0;
+          double spacing = 30.0; // this spacing value is to avoid aggressive lane change(make it more smooth) 
+
+          vector<double> pt1 = getXY(car_s+target_x_, target_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> pt2 = getXY(car_s+target_x_+1*spacing, target_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> pt3 = getXY(car_s+target_x_+2*spacing, target_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+          X.push_back(pt1[0]);
+          Y.push_back(pt1[1]);
+          X.push_back(pt2[0]);
+          Y.push_back(pt2[1]);
+          X.push_back(pt3[0]);
+          Y.push_back(pt3[1]);
+
+          // shift and rotation from global coordiante to local coordinate of eagle vehicle
+          // shift car reference angle to 0 degree, mathematically easier, local transformation
+          // this transformation also prevents us from getting multiple y values with one x value(vertical line) via the spline function.
+          transform(X, Y, ref_x, ref_y, ref_yaw, "forward");
+          // spline --- why use spline instead of polynomial fit?
+          tk::spline s;
+          s.set_points(X,Y); // add points into spline
+          // path planning points that will be sent to the simulator.
+          vector<double> next_x_vals;
+          vector<double> next_y_vals;
+          vector<double> next_yaw;
+
+          // use the left-out points from previous
+          for(int j=0;j < unused_n;++j)
+          {
+            next_x_vals.push_back(previous_path_x[j]);
+            next_y_vals.push_back(previous_path_y[j]);
+          }
+
+          // in vehicle coordinate
+          double target_y = s(target_x_);
+          double target_distance = distance(target_x_, target_y, 0,0);
+
+          double x_add_on = 0; // start from the origin of vehicle coordinate
+
+          for(int i=1;i < 50-unused_n ;++i)
+          {
+            // think of other ways of getting these points(instead of linear approximation)
+            double N = target_distance/(0.02*cur_speed*0.44704); // 1 MPH = 0.44704 m/s
+            double x_point = x_add_on+target_x_/N;
+            double y_point = s(x_point);
+            x_add_on = x_point;
+            double x_ref = x_point;
+            double y_ref = y_point;
+            // inverse transformation(car coordinates to global coordinates)
+            x_point = x_ref*cos(ref_yaw)-y_ref*sin(ref_yaw);
+            y_point = x_ref*sin(ref_yaw)+y_ref*cos(ref_yaw);
+            x_point+=ref_x;
+            y_point+=ref_y;
+
+            next_x_vals.push_back(x_point);
+            next_y_vals.push_back(y_point);
+          }
+
+          assert(next_x_vals.size() == next_y_vals.size());
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 

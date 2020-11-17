@@ -154,4 +154,173 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
   return {x,y};
 }
 
+void transform(vector<double> &vec_x, vector<double> &vec_y, double global_x, double global_y, double global_yaw, string indicate)
+{
+  assert(vec_x.size()==vec_y.size());
+  // vector<double> trans_x(vec_x.size(), 0.0);
+  // vector<double> trans_y(vec_y.size(), 0.0);
+  double shift_x, shift_y;
+  if(indicate=="inverse")
+  {
+    for(int i=0;i < vec_x.size();++i)
+    {
+
+    }
+
+  }
+  else if(indicate=="forward")
+  {
+    for(int i=0;i < vec_x.size();++i)
+    {
+      shift_x = vec_x[i]-global_x;
+      shift_y = vec_y[i]-global_y;
+      // rotation matrix
+      vec_x[i] = shift_x*cos(0-global_yaw)-shift_y*sin(0-global_yaw);
+      vec_y[i] = shift_x*sin(0-global_yaw)+shift_y*cos(0-global_yaw);
+    }
+  }
+
+}
+
+double get_d_value(int lane_number)
+{
+  double lane_width = 4;
+  return lane_number*lane_width+lane_width/2;
+}
+
+
+int decide_better_lane(int cur_lane, double car_s, int num_all_lanes, double gap_ahead,const vector<vector<double>>& sensor_data)
+{
+  int better_lane = cur_lane;
+  bool DEBUG = true;
+  double true_car_s = car_s-5.0;
+  vector<int> safe_change_lanes;
+  double sensor_s;
+  double sensor_d;
+  double front_gap = 15.0;
+  double back_gap = 15.0;
+  double front_car_s=99999999; // closest car in the lane we want to change to
+  double back_car_s=0;
+  vector<double> front_car_s1{99999999, 99999999};
+  vector<double> back_car_s1{0, 0};
+  bool not_safe = false;
+  vector<bool> not_safe1{false, false};
+  if(cur_lane-1 >= 0) // left lane change
+    safe_change_lanes.push_back(cur_lane-1);
+  if(cur_lane+1 < num_all_lanes) // right lane change
+    safe_change_lanes.push_back(cur_lane+1);
+
+  if(safe_change_lanes.size()==2)
+  {
+    for(int i=0;i<sensor_data.size();++i)
+    {
+      sensor_d = sensor_data[i][6];
+      for(int j=0;j<safe_change_lanes.size();++j)
+      {
+        if((sensor_d > get_d_value(safe_change_lanes[j])-2) && (sensor_d <= get_d_value(safe_change_lanes[j])+2))
+        {
+          sensor_s = sensor_data[i][5];
+          if(sensor_s < true_car_s+front_gap && sensor_s > true_car_s-back_gap)
+            not_safe1[j] = true;
+          if(sensor_s >= true_car_s && sensor_s - true_car_s < front_car_s1[j]-car_s)
+            front_car_s1[j] = sensor_s;
+          else if(sensor_s < true_car_s && true_car_s - sensor_s < true_car_s-back_car_s1[j])
+            back_car_s1[j] = sensor_s;
+        }
+      }
+    }
+
+    if(!not_safe1[0] && !not_safe1[1] && front_car_s1[0] > gap_ahead && front_car_s1[1] > gap_ahead)
+    {
+      if(front_car_s1[0] > front_car_s1[1])
+        better_lane = safe_change_lanes[0];
+      else
+        better_lane = safe_change_lanes[1];
+    }
+    else if(!not_safe1[0] && front_car_s1[0] > gap_ahead)
+      better_lane = safe_change_lanes[0];
+    else if(!not_safe1[1] && front_car_s1[1] > gap_ahead)
+      better_lane = safe_change_lanes[1];
+
+    if(DEBUG)
+    {
+      std::cout << "Gap ahead:" << gap_ahead << std::endl;
+      std::cout << "Front car gap: ";
+      for(int n=0;n < 2;++n)
+        std::cout << front_car_s1[n] - true_car_s << "  ";
+      std::cout << std::endl;
+      std::cout << "Back car gap: ";
+      for(int m=0;m < 2;++m)
+        std::cout << true_car_s - back_car_s1[m] << "  ";
+      std::cout << std::endl;
+    }
+  }
+  else if(safe_change_lanes.size()==1)
+  {
+    for(int i=0;i<sensor_data.size();++i)
+    {
+      sensor_d = sensor_data[i][6];
+      if((sensor_d > get_d_value(safe_change_lanes[0])-2) && (sensor_d <= get_d_value(safe_change_lanes[0])+2))
+      {
+        sensor_s = sensor_data[i][5];
+        if(sensor_s < true_car_s+front_gap && sensor_s > true_car_s-back_gap)
+          not_safe = true;
+
+        if(sensor_s >= true_car_s && sensor_s - true_car_s < front_car_s-car_s)
+          front_car_s = sensor_s;
+        else if(sensor_s < true_car_s && true_car_s - sensor_s < true_car_s-back_car_s)
+          back_car_s = sensor_s;
+      }
+    }
+
+    if(!not_safe && front_car_s > gap_ahead)
+      better_lane = safe_change_lanes[0]; // change to the side lane(either right or left)
+    if(DEBUG)
+    {
+      std::cout << "Gap ahead:" << gap_ahead << std::endl;
+      std::cout << "Front car gap: " << front_car_s- true_car_s << std::endl;
+      std::cout << "Back car gap: " << true_car_s-back_car_s << std::endl;
+    }
+
+  }
+  
+  return better_lane;
+}
+
+vector<vector<double>> drive_in_circle(double car_yaw, double car_x, double car_y)
+{
+  // drive in a circle
+  vector<double> x_vec;
+  vector<double> y_vec;
+  double dist_inc = 0.35;
+  double cur_yaw;
+  for (int i = 0; i < 50; ++i) {
+    cur_yaw = (car_yaw+i*(0.8));//%(2*pi());
+    x_vec.push_back(car_x+(dist_inc*i)*cos(deg2rad(cur_yaw)));
+    y_vec.push_back(car_y+(dist_inc*i)*sin(deg2rad(cur_yaw)));
+  }
+  return {x_vec, y_vec};
+}
+
+
+double goal_distance_cost(int goal_lane, int intended_lane, int final_lane, double distance_to_goal) {
+  // The cost increases with both the distance of intended lane from the goal
+  //   and the distance of the final lane from the goal. The cost of being out 
+  //   of the goal lane also becomes larger as the vehicle approaches the goal.
+  int delta_d = 2.0 * goal_lane - intended_lane - final_lane;
+  double cost = 1 - exp(-(std::abs(delta_d) / distance_to_goal));
+
+  return cost;
+}
+
+double inefficiency_cost(int target_speed, int intended_lane, int final_lane, const std::vector<int> &lane_speeds) {
+  // Cost becomes higher for trajectories with intended lane and final lane 
+  //   that have traffic slower than target_speed.
+  double speed_intended = lane_speeds[intended_lane];
+  double speed_final = lane_speeds[final_lane];
+  double cost = (2.0*target_speed - speed_intended - speed_final)/target_speed;
+
+  return cost;
+}
+
 #endif  // HELPERS_H
