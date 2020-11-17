@@ -64,7 +64,7 @@ Finite state machine: keep lane, change lane left, change lane right, prepare la
 
 In order to safely traverse the road, we must be able to perceive and predict the motion of other dynamic objects, such as pedestrians, other vehicles, and follow traffic rules at the same time. Incorporating uncertainty in this part is critical for generalization. This means not only the noise of data but also how much we trust the process model. One can use model-based or data-driven method or implement hybrid approaches(a combination of both methods). For model-based approach, we define process models mathematically, and then implement Autonomous Multiple Model algorithm(probabilistical classification). As for data-driven method, we first acquire data with sensors, define a measure of similarity(of trajectories), and then use trajectory clustering to compare and predict possible movements.
 
-<img src="/predict.png" alt="table" width="600" height="600"/>
+<img src="/predict.png" alt="table" width="700" height="300"/>
 
 #### Trajectory generation
 
