@@ -101,7 +101,7 @@ Different environments: Highway(sparse space) v.s. parking lot(dense and discret
 | `UPDATE_RATE`|  0.02 | unit:second|
 | `WAIT_AFTER_CHANGE `|  60  | avoid changing lane immediately after a lane change |
 
-#### `decide_better_lane()` in helper.h
+#### `decide_better_lane()` in helpers.h
 
 This function takes current lane, current distance to the car ahead of the ego vehicle, and sensor fusion data as inputs. First we define suitable distances(`front_gap`, `back_gap`) between current s coordinate of ego car and approaching vehicles. These distances should allow us to make a safe lane change. Then we loop through the sensor data of adjacent lanes and keep track of the closest distances between the cars in front and behind and the ego car. If we are in the middle lane(lane 1), choose the left or right lane change that has larger space(larger gap to the car ahead of you). If in lane 0 or lane 2, make a lane change when the gap is large enough. Otherwise the output should be the same as the current lane when all the safety criteria are not satisfied. 
 
