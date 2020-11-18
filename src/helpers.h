@@ -199,7 +199,7 @@ int decide_better_lane(int cur_lane, double car_s, int num_all_lanes, double gap
   double sensor_s;
   double sensor_d;
   double front_gap = 17.0;
-  double back_gap = 17.0;
+  double back_gap = 16.0;
   double front_car_s=LARGE_VALUE; // closest car in the lane we want to change to
   double back_car_s=0;
   vector<double> front_car_s1{LARGE_VALUE, LARGE_VALUE};
