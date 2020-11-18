@@ -20,7 +20,7 @@ const float MPH2MPS = 0.44704; // 1 MPH = 0.44704 m/s
 const int TOTAL_POINTS = 50; 
 const int NUM_LANES = 3; 
 const float UPDATE_RATE = 0.02; // the car will visit sequentially every 0.02 seconds
-const int WAIT_AFTER_CHANGE = 50;
+const float WAIT_AFTER_CHANGE = 0.8/UPDATE_RATE; // wait for 0.8 second after changing lane
 
 int main() {
   uWS::Hub h;
