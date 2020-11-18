@@ -89,7 +89,7 @@ Different environments: Highway(sparse space) v.s. parking lot(dense and discret
 
 ## Flow chart
 
-<img src="/chart.png" alt="table" width="750" height="400"/>
+<img src="/chart.png" alt="table" width="900" height="400"/>
 
 ## Code explanation
 
@@ -110,7 +110,7 @@ Different environments: Highway(sparse space) v.s. parking lot(dense and discret
 
 
 #### `decide_better_lane()`
- 
+
 
 
 ## Details
