@@ -76,49 +76,43 @@ Feasibility checking for the generated trajectories
 logitudinal acceleration 
 lateral acceleration -->
 
-#### The use of Frenet coordinate and previous waypoints
-
-If one use too many previous points, the system would not be able to react when there's a sudden change cause it's mostly following the previous path.
-
-two sets of points: 
-points that are going to be passed into the simulator and used by the car.(future path points)
-points which construct the spline segment 
-
-tradeoff between hybrid a star and finite state machine, when should one use hybrid a star
-Different environments: Highway(sparse space) v.s. parking lot(dense and discretized) or intersection
 
 ## Flow chart
 
-<img src="/chart.png" alt="table" width="900" height="400"/>
+<img src="/chart.png" alt="table" width="900" height="350"/>
+
+#### The use of Frenet coordinate and previous waypoints
+
+In this project, we mainly work with two sets of points. One is the points that are going to be passed into the simulator and used by the car(future trajectory points). The other one corresponds the input points of Spline function. Here we also introduce a new coordiante system called the Frenet coordinate frame. It describes the position of a with respect to the road and makes our work easier. As for the previous point, the simulator returns a set of points that are not processed or executed by the ego car. We then can take advantage of these points and add them into the new set of predicted path points. This makes the trajectory smoother. However, if one use too many previous points, the system would not be able to react when there's a sudden change in the surroundings. Thus, one should be aware of this tradoff when designing the planner.
+
+<!--tradeoff between hybrid a star and finite state machine, when should one use hybrid a star
+Different environments: Highway(sparse space) v.s. parking lot(dense and discretized) or intersection -->
 
 ## Code explanation
 
-#### Constant definition 
+#### Constant definition in main.cpp
 
-| Variable Name        | Value     | Remarks|
+| Variable name        | Value     | Remarks|
 | ------------- |:-------------:| :-------------:|
 | `lane_width`      | 4 |     |
 | `SPEED_LIMIT`    |    49.5  | slightly lower than actual speed limit. |
 | `MPH2MPS`|  0.44704  | convert from miles per hour to m/s|
 | `TOTAL_POINTS `    |    50  | total numper of points to pass into the simulator|
 | `NUM_LANES`|  3  | number of lanes|
-| `UPDATE_RATE`|  0.02 (s) | |
+| `UPDATE_RATE`|  0.02 | Unit:second|
 | `WAIT_AFTER_CHANGE `|  60  | avoid changing lane immediately after a lane change |
 
-#### `transform()`
+#### `decide_better_lane()` in helper.h
+
+This function takes current lane, current distance to the car ahead of the ego vehicle, and sensor fusion data as inputs. First we define suitable distances(`front_gap`, `back_gap`) between current s coordinate of ego car and approaching vehicles. These distances should allow us to make a safe lane change. Then we loop through the sensor data of adjacent lanes and keep track of the closest distances between the cars in front and behind and the ego car. If we are in the middle lane(lane 1), choose the left or right lane change that has larger space(larger gap to the car ahead of you). If in lane 0 or lane 2, make a lane change when the gap is large enough. Otherwise the output should be the same as the current lane when all the safety criteria are not satisfied. In addition, a iteration count is also implemented. 
 
 
-
-#### `decide_better_lane()`
-
-
-
-## Details
+<!-- ## Details
 
 1. The car uses a perfect controller and will visit every (x,y) point it recieves in the list every .02 seconds. The units for the (x,y) points are in meters and the spacing of the points determines the speed of the car. The vector going from a point to the next point in the list dictates the angle of the car. Acceleration both in the tangential and normal directions is measured along with the jerk, the rate of change of total Acceleration. The (x,y) point paths that the planner recieves should not have a total acceleration that goes over 10 m/s^2, also the jerk should not go over 50 m/s^3. (NOTE: As this is BETA, these requirements might change. Also currently jerk is over a .02 second interval, it would probably be better to average total acceleration over 1 second and measure jerk from that.
 
 2. There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed. You would either return a path that extends this previous path or make sure to create a new path that has a smooth transition with this last path.
-
+ -->
 
 
 

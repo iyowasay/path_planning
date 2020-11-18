@@ -159,10 +159,9 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
 void transform(vector<double> &vec_x, vector<double> &vec_y, double global_x, double global_y, double global_yaw, string indicate)
 {
   assert(vec_x.size()==vec_y.size());
-  // vector<double> trans_x(vec_x.size(), 0.0);
-  // vector<double> trans_y(vec_y.size(), 0.0);
   double shift_x, shift_y;
-  if(indicate=="inverse")
+
+  if(indicate=="inverse") 
   {
     for(int i=0;i < vec_x.size();++i)
     {
