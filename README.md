@@ -38,10 +38,10 @@ The simulator returns the previous list but with processed points removed(remain
 
 This contains a list(a 2D vector) of all other car's attributes on the same side of the road without noises.
 
-- `sensor_fusion[0]`: car's unique ID
-- `sensor_fusion[1], [2]`: car's x, y position in map coordinates
-- `sensor_fusion[3], [4]`: car's x, y velocity in m/s
-- `sensor_fusion[5], [6]`: car's s and d position in frenet coordinates
+- `sensor_fusion[0]`: unique ID
+- `sensor_fusion[1], [2]`: x and y position in map coordinates
+- `sensor_fusion[3], [4]`: x and y velocity in m/s
+- `sensor_fusion[5], [6]`: s and d position in frenet coordinates
 
 ## Concepts
 
@@ -90,6 +90,18 @@ Different environments: Highway(sparse space) v.s. parking lot(dense and discret
 
 ## Code explanation
 
+#### Constant definition 
+
+| Variable Name        | Value     | Remarks|
+| ------------- |:-------------:| :-------------:|
+| `lane_width`      | 4 |     |
+| `SPEED_LIMIT`    |    49.5  | slightly lower than actual speed limit. |
+| `MPH2MPS`|  0.44704  | convert from MPH to m/s|
+| `TOTAL_POINTS `    |    50  | total numper of points to pass into the simulator|
+| `NUM_LANES`|  3  | number of lanes|
+| `UPDATE_RATE`|  0.02  | (s)|
+| `WAIT_AFTER_CHANGE `|  50  | Not changing lane immediately after a lane change |
+| ``|    | |
 
 
 
