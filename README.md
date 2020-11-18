@@ -87,6 +87,9 @@ points which construct the spline segment
 tradeoff between hybrid a star and finite state machine, when should one use hybrid a star
 Different environments: Highway(sparse space) v.s. parking lot(dense and discretized) or intersection
 
+## Flow chart
+
+<img src="/chart.png" alt="table" width="750" height="400"/>
 
 ## Code explanation
 
@@ -96,14 +99,18 @@ Different environments: Highway(sparse space) v.s. parking lot(dense and discret
 | ------------- |:-------------:| :-------------:|
 | `lane_width`      | 4 |     |
 | `SPEED_LIMIT`    |    49.5  | slightly lower than actual speed limit. |
-| `MPH2MPS`|  0.44704  | convert from MPH to m/s|
+| `MPH2MPS`|  0.44704  | convert from miles per hour to m/s|
 | `TOTAL_POINTS `    |    50  | total numper of points to pass into the simulator|
 | `NUM_LANES`|  3  | number of lanes|
-| `UPDATE_RATE`|  0.02  | (s)|
-| `WAIT_AFTER_CHANGE `|  50  | Not changing lane immediately after a lane change |
-| ``|    | |
+| `UPDATE_RATE`|  0.02 (s) | |
+| `WAIT_AFTER_CHANGE `|  60  | avoid changing lane immediately after a lane change |
+
+#### `transform()`
 
 
+
+#### `decide_better_lane()`
+ 
 
 
 ## Details
