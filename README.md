@@ -1,9 +1,12 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program  
 
+
+This is [the link](https://www.youtube.com/watch?v=PO55TqNiEn4) to the video. 
+
 ### Intro
 
-In this project our goal is to safely navigate around a virtual highway in the Udacity simulator, with other traffic that is driving ± 10 MPH of the 50 MPH speed limit. The localization of ego vehicle and sensor fusion data(only the surrounding vehicles on the same side of the road) are provided. Note that other cars will try to change lanes too. In addition, a sparse map list of waypoints around the highway is given in data/highway_map.txt. With these data, one should complete the project by using motion planning methods and weighted cost functions. 
+In this project our goal is to safely navigate around a virtual highway in the Udacity simulator, with other traffic that is driving ± 10 MPH of the 50 MPH speed limit. The localization of ego vehicle and sensor fusion data(only the surrounding vehicles on the same side of the road) are provided. Note that other cars will try to change lanes too. In addition, a sparse map list of waypoints around the highway is given in `data/highway_map.txt`. With these data, one should complete the project by using motion planning methods and weighted cost functions. 
 
 ### Limitations
 
@@ -64,7 +67,7 @@ Finite state machine: keep lane, change lane left, change lane right, prepare la
 
 In order to safely traverse the road, we must be able to perceive and predict the motion of other dynamic objects, such as pedestrians, other vehicles, and follow traffic rules at the same time. Incorporating uncertainty in this part is critical for generalization. This means not only the noise of data but also how much we trust the process model. One can use model-based or data-driven method or implement hybrid approaches(a combination of both methods). For model-based approach, we define process models mathematically, and then implement Autonomous Multiple Model algorithm(probabilistical classification). As for data-driven method, we first acquire data with sensors, define a measure of similarity(of trajectories), and then use trajectory clustering to compare and predict possible movements.
 
-<img src="/predict.png" alt="table" width="700" height="300"/>
+<img src="/predict.png" alt="table" width="700" height="400"/>
 
 #### Trajectory generation
 

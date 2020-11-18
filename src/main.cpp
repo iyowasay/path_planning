@@ -14,6 +14,14 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
+const float lane_width = 4.0;
+const float SPEED_LIMIT = 49.5f; // MPH, a bit lower than speed limit.
+const float MPH2MPS = 0.44704; // 1 MPH = 0.44704 m/s 
+const int TOTAL_POINTS = 50; 
+const int NUM_LANES = 3; 
+const float UPDATE_RATE = 0.02; // the car will visit sequentially every 0.02 seconds
+const int WAIT_AFTER_CHANGE = 50;
+
 int main() {
   uWS::Hub h;
 
@@ -32,7 +40,7 @@ int main() {
   std::ifstream in_map_(map_file_.c_str(), std::ifstream::in);
 
   string line;
-  while (getline(in_map_, line)) {
+  while(getline(in_map_, line)) {
     std::istringstream iss(line);
     double x;
     double y;
@@ -52,11 +60,11 @@ int main() {
   }
   
   int lane = 1; // start in the middle lane(lane 1)
-  double cur_speed = 0.0; // MPH
-  int num_lanes = 3;
-
-  h.onMessage([&num_lanes, &cur_speed, &lane, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy]
+  double cur_speed = 0.0; // MPH 
+  int iter_count=0;
+  
+  h.onMessage([&iter_count, &cur_speed, &lane, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
+               &map_waypoints_dx, &map_waypoints_dy]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -93,16 +101,10 @@ int main() {
           auto sensor_fusion = j[1]["sensor_fusion"];
 
           json msgJson;
-          /**
-           * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every 0.02 seconds
-           */
 
           // Note that the previous_path_x contains points that are generated and sent in last iteration 
           // but not executed or used by the simulator(left-out points)
           int unused_n = previous_path_x.size();
-          double MAX_SPEED = 49.5; // MPH, a bit lower than speed limit.
-          double lane_width = 4;
 
           std::cout << lane << std::endl;
           // sensor fusion
@@ -110,12 +112,12 @@ int main() {
             car_s = end_path_s;
 
           bool collision_warn = false;
-          double safe_gap = 25.0;
+          double safe_gap = 27.0;
           double cur_gap = 0.0;
           double target_d = get_d_value(lane);
-          
-          // avoid collision
-          for(int i=0;i<sensor_fusion.size();++i)
+          double max_speed = SPEED_LIMIT;
+          // avoid collision 
+          for(int i=0;i < sensor_fusion.size();++i)
           {
             double sense_d = sensor_fusion[i][6];
             if(sense_d < target_d+2 && sense_d > target_d-2)
@@ -125,27 +127,41 @@ int main() {
               double vy = sensor_fusion[i][4];
               double v = sqrt(vx*vx+vy*vy);
               double predict_sense_s; // the s value of surrounding vehicle after a short period(prediction of future position)
-              predict_sense_s = sense_s + (double)unused_n*0.02*v; // fuzzy logic
+              predict_sense_s = sense_s + static_cast<double>(unused_n)*UPDATE_RATE*v; // fuzzy logic
               cur_gap = predict_sense_s - car_s;
               if((car_s < predict_sense_s) && cur_gap <= safe_gap)
               {
                 collision_warn = true;
+                max_speed = v/MPH2MPS;
+                // std::cout << "Front car speed:" << v << std::endl;
               }
             }
           }
 
+          iter_count++;
           if(collision_warn)
           {
-            lane = decide_better_lane(lane, car_s, num_lanes, cur_gap, sensor_fusion);
-            cur_speed -= 0.2*(1+0.28*(safe_gap-cur_gap)/safe_gap); 
+            if(iter_count > WAIT_AFTER_CHANGE)
+            {
+              int curLane = lane;
+              lane = decide_better_lane(curLane, car_s, NUM_LANES, cur_gap, sensor_fusion);
+              if(lane != curLane) // lane changed
+                iter_count=0;
+            }
+
+            if(cur_speed >= max_speed)
+            {
+              cur_speed -= 0.2*(1+0.28*(safe_gap-cur_gap)/safe_gap);
+              if(cur_speed < 0)
+                cur_speed = 0.0;
+            }
+            else if(cur_speed < max_speed)
+              cur_speed += 0.224;
           }
-          else if(cur_speed < MAX_SPEED)
+          else if(cur_speed < max_speed)
             cur_speed += 0.224;
 
-          if(cur_speed < 0)
-            cur_speed = 0.0;
 
-          
           // x and y points for curve fitting(spline)
           vector<double> X; 
           vector<double> Y;
@@ -181,22 +197,17 @@ int main() {
             Y.push_back(ref_y);
           }
 
-          // add 3 more sparse(spaced) points useing Fernet system
+          // add 3 more sparse(spaced) points using Fernet system
           // since d unit vector is calculated from the middle(double-yellow driving line)
           // d coordinate in the middle of targeting lane = lane_number*4 + 4/2
           double target_x_ = 30.0;
-          double spacing = 30.0; // this spacing value is to avoid aggressive lane change(make it more smooth) 
-
-          vector<double> pt1 = getXY(car_s+target_x_, target_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> pt2 = getXY(car_s+target_x_+1*spacing, target_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> pt3 = getXY(car_s+target_x_+2*spacing, target_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-
-          X.push_back(pt1[0]);
-          Y.push_back(pt1[1]);
-          X.push_back(pt2[0]);
-          Y.push_back(pt2[1]);
-          X.push_back(pt3[0]);
-          Y.push_back(pt3[1]);
+          double spacing = 30.0; // this spacing value is to avoid aggressive lane change(make it smoother) 
+          for(unsigned int i = 1;i < 3;++i)
+          {
+            vector<double> pt1 = getXY(car_s+i*spacing, target_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            X.push_back(pt1[0]);
+            Y.push_back(pt1[1]);
+          }
 
           // shift and rotation from global coordiante to local coordinate of eagle vehicle
           // shift car reference angle to 0 degree, mathematically easier, local transformation
@@ -208,7 +219,6 @@ int main() {
           // path planning points that will be sent to the simulator.
           vector<double> next_x_vals;
           vector<double> next_y_vals;
-          vector<double> next_yaw;
 
           // use the left-out points from previous
           for(int j=0;j < unused_n;++j)
@@ -223,11 +233,11 @@ int main() {
 
           double x_add_on = 0; // start from the origin of vehicle coordinate
 
-          for(int i=1;i < 50-unused_n ;++i)
+          for(int i=1;i < TOTAL_POINTS - unused_n ;++i)
           {
             // think of other ways of getting these points(instead of linear approximation)
-            double N = target_distance/(0.02*cur_speed*0.44704); // 1 MPH = 0.44704 m/s
-            double x_point = x_add_on+target_x_/N;
+            double N = target_distance/(UPDATE_RATE*cur_speed*MPH2MPS); 
+            double x_point = x_add_on + target_x_/N;
             double y_point = s(x_point);
             x_add_on = x_point;
             double x_ref = x_point;
@@ -235,8 +245,8 @@ int main() {
             // inverse transformation(car coordinates to global coordinates)
             x_point = x_ref*cos(ref_yaw)-y_ref*sin(ref_yaw);
             y_point = x_ref*sin(ref_yaw)+y_ref*cos(ref_yaw);
-            x_point+=ref_x;
-            y_point+=ref_y;
+            x_point += ref_x;
+            y_point += ref_y;
 
             next_x_vals.push_back(x_point);
             next_y_vals.push_back(y_point);

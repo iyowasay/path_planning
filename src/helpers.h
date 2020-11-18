@@ -4,11 +4,13 @@
 #include <math.h>
 #include <string>
 #include <vector>
+#include <limits>
 
 // for convenience
 using std::string;
 using std::vector;
 
+const double LARGE_VALUE = std::numeric_limits<double>::max();
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
 //   else the empty string "" will be returned.
@@ -197,11 +199,11 @@ int decide_better_lane(int cur_lane, double car_s, int num_all_lanes, double gap
   vector<int> safe_change_lanes;
   double sensor_s;
   double sensor_d;
-  double front_gap = 15.0;
-  double back_gap = 15.0;
-  double front_car_s=99999999; // closest car in the lane we want to change to
+  double front_gap = 17.0;
+  double back_gap = 17.0;
+  double front_car_s=LARGE_VALUE; // closest car in the lane we want to change to
   double back_car_s=0;
-  vector<double> front_car_s1{99999999, 99999999};
+  vector<double> front_car_s1{LARGE_VALUE, LARGE_VALUE};
   vector<double> back_car_s1{0, 0};
   bool not_safe = false;
   vector<bool> not_safe1{false, false};
